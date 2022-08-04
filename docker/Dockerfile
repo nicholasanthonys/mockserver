@@ -23,11 +23,12 @@ RUN wget --max-redirect=10 -O mockserver-netty-jar-with-dependencies.jar "$REPOS
 RUN wget --max-redirect=10 -O netty-tcnative-boringssl-static.jar "https://oss.sonatype.org/service/local/artifact/maven/redirect?r=releases&g=io.netty&a=netty-tcnative-boringssl-static&c=linux-x86_64&e=jar&v=2.0.50.Final"
 RUN unzip netty-tcnative-boringssl-static.jar
 
+
 # build image
 FROM alpine as copy
 
 # copy jar
-COPY mockserver-netty-jar-with-dependencies.jar .
+COPY  --from=download mockserver-netty-jar-with-dependencies.jar .
 # add netty-tcnative-boringssl so file
 RUN apk add --update openssl ca-certificates bash wget
 RUN wget --max-redirect=10 -O netty-tcnative-boringssl-static.jar "https://oss.sonatype.org/service/local/artifact/maven/redirect?r=releases&g=io.netty&a=netty-tcnative-boringssl-static&c=linux-x86_64&e=jar&v=2.0.50.Final"
@@ -36,7 +37,8 @@ RUN unzip netty-tcnative-boringssl-static.jar
 FROM ${source} as intermediate
 
 # runtime image https://console.cloud.google.com/gcr/images/distroless/global/java17
-FROM gcr.io/distroless/java17:nonroot
+# FROM gcr.io/distroless/java17:nonroot
+FROM openjdk:17.0.2-jdk-bullseye
 
 # maintainer details
 MAINTAINER James Bloom "jamesdbloom@gmail.com"
@@ -48,8 +50,8 @@ EXPOSE 1080
 COPY --from=intermediate mockserver-netty-jar-with-dependencies.jar /
 COPY --from=intermediate META-INF/native/libnetty_tcnative_linux_x86_64.so /usr/lib/x86_64-linux-gnu/libnetty_tcnative_linux_x86_64.so
 
-# don't run MockServer as root
-USER nonroot
+# # don't run MockServer as root
+# USER nonroot
 
 ENTRYPOINT ["java", "-Dfile.encoding=UTF-8", "-cp", "/mockserver-netty-jar-with-dependencies.jar:/libs/*", "-Dmockserver.propertyFile=/config/mockserver.properties", "org.mockserver.cli.Main"]
 
